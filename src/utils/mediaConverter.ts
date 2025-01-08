@@ -61,14 +61,16 @@ export async function convertMedia(
     //    We'll keep it simple: if input starts with "video/", treat as video
     //    else treat as image. For audio-only conversions, you could do similar checks.
     const isInputVideo = file.type.startsWith('video/');
+    const isInputAudio = file.type.startsWith('audio/');
     const isTargetVideo = isVideoFormat(targetFormat);
-    console.log(`Input is ${isInputVideo ? 'video' : 'image'}, target is ${isTargetVideo ? 'video' : 'image'}`);
+    const isTargetAudio = isAudioFormat(targetFormat);
+    console.log(`Input is ${isInputVideo ? 'video' : isInputAudio ? 'audio' : 'image'}, target is ${isTargetVideo ? 'video' : isTargetAudio ? 'audio' : 'image'}`);
 
     // 7) Construct FFmpeg argument list based on scenarios
     let ffmpegArgs: string[] = [];
 
     // Scenario A: Image → Image
-    if (!isInputVideo && !isTargetVideo) {
+    if (!isInputVideo && !isInputAudio && !isTargetVideo && !isTargetAudio) {
       // Example arguments for converting one image format to another (PNG, JPG, WEBP, etc.)
       // Using '-frames:v 1' ensures only a single frame is output if the file is multi-frame (e.g. animated GIF).
       ffmpegArgs = [
@@ -77,7 +79,7 @@ export async function convertMedia(
       ];
 
     // Scenario B: Image → Video
-    } else if (!isInputVideo && isTargetVideo) {
+    } else if (!isInputVideo && !isInputAudio && isTargetVideo) {
       // Converting a static image to a video (e.g., 5-second loop)
       // By default, this will produce a 5-second video from the single image.
       ffmpegArgs = [
@@ -91,29 +93,38 @@ export async function convertMedia(
       ];
 
     // Scenario C: Video → Image
-    } else if (isInputVideo && !isTargetVideo) {
+    } else if (isInputVideo && !isTargetVideo && !isTargetAudio) {
       // Extracting a single frame from a video
-      // Could also do something like '-frames:v 10' to get multiple frames,
-      // or '-vf', 'fps=1' to get 1 frame per second, etc.
       ffmpegArgs = [
         '-i', inputName,
-        '-vf', 'scale=iw:ih', // Keep original size (you could add resizing)
-        '-q:v', '2',
-        '-frames:v', '1',     // Just output the first frame as an image
+        '-vf', 'scale=iw:ih', // Keep original size
+        '-frames:v', '1',     // Extract first frame
         outputName,
       ];
 
     // Scenario D: Video → Video
-    } else {
-      // Generic video-to-video conversion
-      // If you want audio copied as-is, you can do '-c:a', 'copy'.
-      // If you want to re-encode, specify a codec like 'aac' for audio.
+    } else if (isInputVideo && isTargetVideo) {
       ffmpegArgs = [
         '-i', inputName,
         '-c:v', getVideoCodec(targetFormat),
-        '-c:a', 'aac',
-        '-b:a', '192k', // Example: setting audio bitrate
-        '-pix_fmt', 'yuv420p', // Ensures better compatibility for some formats
+        '-c:a', getAudioCodec(targetFormat),
+        outputName,
+      ];
+
+    // Scenario E: Audio → Audio
+    } else if (isInputAudio && isTargetAudio) {
+      ffmpegArgs = [
+        '-i', inputName,
+        '-c:a', getAudioCodec(targetFormat),
+        outputName,
+      ];
+
+    // Scenario F: Video → Audio (extract audio)
+    } else if (isInputVideo && isTargetAudio) {
+      ffmpegArgs = [
+        '-i', inputName,
+        '-vn',               // Remove video stream
+        '-c:a', getAudioCodec(targetFormat),
         outputName,
       ];
     }
@@ -186,17 +197,29 @@ function getVideoCodec(format: string): string {
       return 'libx264';
     case 'webm':
       return 'libvpx-vp9';
-    case 'mov':
-      return 'libx264';
-    case 'mkv':
-      return 'libx264'; // or 'libvpx-vp9' if preferred
     case 'gif':
-      // Technically not a video codec, but we handle GIF differently above.
-      // Fallback to something generic if we get here by accident.
-      return 'libx264';
+      return 'gif';
     default:
-      // Default to H.264 for unknown formats (may fail if format is truly unknown).
-      return 'libx264';
+      return 'libx264'; // Default to H.264
+  }
+}
+
+function getAudioCodec(format: string): string {
+  switch (format.toLowerCase()) {
+    case 'mp3':
+      return 'libmp3lame';
+    case 'aac':
+      return 'aac';
+    case 'ogg':
+      return 'libvorbis';
+    case 'wav':
+      return 'pcm_s16le';
+    case 'm4a':
+      return 'aac';
+    case 'flac':
+      return 'flac';
+    default:
+      return 'aac'; // Default to AAC
   }
 }
 
@@ -205,6 +228,9 @@ function getVideoCodec(format: string): string {
  * Extend as needed (e.g. "avi", "flv", "mkv", etc.).
  */
 function isVideoFormat(format: string): boolean {
-  const videoFormats = ['mp4', 'webm', 'mov', 'mkv', 'avi', 'flv', 'gif']; 
-  return videoFormats.includes(format.toLowerCase());
+  return ['mp4', 'webm', 'mov', 'mkv', 'avi', 'flv', 'gif'].includes(format.toLowerCase());
+}
+
+function isAudioFormat(format: string): boolean {
+  return ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'].includes(format.toLowerCase());
 }

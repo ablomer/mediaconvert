@@ -14,7 +14,7 @@ import {
 } from '@mantine/core';
 import { Notifications, notifications } from '@mantine/notifications';
 import { Dropzone } from '@mantine/dropzone';
-import { IconUpload, IconPhoto, IconVideo } from '@tabler/icons-react';
+import { IconUpload, IconPhoto, IconVideo, IconMusic } from '@tabler/icons-react';
 import { convertMedia } from './utils/mediaConverter';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
@@ -27,6 +27,7 @@ const theme = createTheme({
 
 const videoFormats = ['mp4', 'webm', 'mov', 'mkv', 'avi', 'flv', 'gif'];
 const imageFormats = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'];
+const audioFormats = ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'];
 
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
@@ -47,12 +48,23 @@ export default function App() {
   const getAvailableFormats = () => {
     if (!file) return [];
     
-    // Return all possible formats since we support all conversion types
-    const allFormats = [...new Set([...videoFormats, ...imageFormats])]
+    // Determine available formats based on input file type
+    const isAudio = file.type.startsWith('audio/');
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+
+    let availableFormats: string[] = [];
+    if (isAudio) {
+      availableFormats = audioFormats;
+    } else if (isVideo) {
+      availableFormats = [...videoFormats, ...audioFormats]; // Allow extracting audio from video
+    } else if (isImage) {
+      availableFormats = [...imageFormats, ...videoFormats];
+    }
+
+    return availableFormats
       .filter(format => !file.name.endsWith(format))
       .map(format => ({ value: format, label: format.toUpperCase() }));
-      
-    return allFormats;
   };
 
   const handleLog = (message: string) => {
@@ -111,7 +123,7 @@ export default function App() {
             <Stack>
               <Dropzone
                 onDrop={handleDrop}
-                accept={['image/*', 'video/*']}
+                accept={['image/*', 'video/*', 'audio/*']}
                 maxSize={100 * 1024 * 1024} // 100MB
               >
                 <Group style={{ minHeight: 120, pointerEvents: 'none' }}>
@@ -125,12 +137,13 @@ export default function App() {
                     <Group>
                       <IconPhoto size={50} stroke={1.5} />
                       <IconVideo size={50} stroke={1.5} />
+                      <IconMusic size={50} stroke={1.5} />
                     </Group>
                   </Dropzone.Idle>
 
                   <div>
                     <Text size="xl" inline>
-                      Drag images or videos here or click to select files
+                      Drag images, videos, or audio files here or click to select files
                     </Text>
                     <Text size="sm" c="dimmed" inline mt={7}>
                       Files will be converted locally in your browser
