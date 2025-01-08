@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   MantineProvider,
   Container,
@@ -25,7 +25,7 @@ const theme = createTheme({
   defaultRadius: 'md',
 });
 
-const videoFormats = ['mp4', 'webm', 'mov', 'mkv', 'avi', 'flv', 'gif'];
+const videoFormats = ['mp4', 'webm', 'mov', 'mkv', 'avi', 'flv'];
 const imageFormats = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'];
 const audioFormats = ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'];
 
@@ -34,6 +34,72 @@ export default function App() {
   const [targetFormat, setTargetFormat] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [converting, setConverting] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const isValidMediaType = (type: string) => {
+    return type.startsWith('audio/') || type.startsWith('video/') || type.startsWith('image/');
+  };
+
+  const isValidMediaUrl = (url: string) => {
+    try {
+      const parsedUrl = new URL(url);
+      const extension = parsedUrl.pathname.split('.').pop()?.toLowerCase() || '';
+      return [...videoFormats, ...imageFormats, ...audioFormats].includes(extension);
+    } catch {
+      return false;
+    }
+  };
+
+  const downloadFile = async (url: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      
+      const contentType = response.headers.get('content-type') || '';
+      if (!isValidMediaType(contentType)) {
+        throw new Error('Invalid media type');
+      }
+
+      const blob = await response.blob();
+      const fileName = url.split('/').pop() || 'downloaded-file';
+      const file = new File([blob], fileName, { type: contentType });
+      handleDrop([file]);
+    } catch (error) {
+      notifications.show({
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to download file',
+        color: 'red',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePaste = async (e: ClipboardEvent) => {
+    e.preventDefault();
+    
+    // Handle files directly pasted
+    const files = Array.from(e.clipboardData?.files || []);
+    if (files.length > 0) {
+      const validFiles = files.filter(file => isValidMediaType(file.type));
+      if (validFiles.length > 0) {
+        handleDrop([validFiles[0]]);
+        return;
+      }
+    }
+
+    // Handle pasted URL
+    const text = e.clipboardData?.getData('text');
+    if (text && isValidMediaUrl(text)) {
+      await downloadFile(text);
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, []);
 
   const handleDrop = (files: File[]) => {
     if (files.length > 0) {
@@ -124,7 +190,8 @@ export default function App() {
               <Dropzone
                 onDrop={handleDrop}
                 accept={['image/*', 'video/*', 'audio/*']}
-                maxSize={100 * 1024 * 1024} // 100MB
+                maxSize={100 * 1024 * 1024}
+                loading={loading}
               >
                 <Group style={{ minHeight: 120, pointerEvents: 'none' }}>
                   <Dropzone.Accept>
@@ -143,10 +210,10 @@ export default function App() {
 
                   <div>
                     <Text size="xl" inline>
-                      Drag images, videos, or audio files here or click to select files
+                      Drag, paste, or click to select media files
                     </Text>
                     <Text size="sm" c="dimmed" inline mt={7}>
-                      Files will be converted locally in your browser
+                      You can also paste a URL to a media file
                     </Text>
                   </div>
                 </Group>
