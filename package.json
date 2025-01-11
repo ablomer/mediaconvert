@@ -15,6 +15,7 @@
     "@ffmpeg/core-mt": "^0.12.4",
     "@ffmpeg/ffmpeg": "^0.12.7",
     "@ffmpeg/util": "^0.12.1",
+    "@imagemagick/magick-wasm": "^0.0.32",
     "@mantine/core": "^7.15.3",
     "@mantine/dropzone": "^7.15.3",
     "@mantine/hooks": "^7.15.3",
