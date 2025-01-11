@@ -11,11 +11,15 @@ import {
   Stack,
   Progress,
   createTheme,
+  LoadingOverlay,
 } from '@mantine/core';
 import { Notifications, notifications } from '@mantine/notifications';
 import { Dropzone } from '@mantine/dropzone';
 import { IconUpload, IconPhoto, IconVideo, IconMusic } from '@tabler/icons-react';
-import { convertMedia } from './utils/mediaConverter';
+import { convertMedia, setFFmpegInstance, cancelConversion } from './utils/mediaConverter';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { toBlobURL } from '@ffmpeg/util';
+import { initializeImageMagick } from '@imagemagick/magick-wasm';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/dropzone/styles.css';
@@ -35,6 +39,40 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [converting, setConverting] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [initializingLibs, setInitializingLibs] = useState(true);
+
+  // Pre-initialize FFmpeg and ImageMagick
+  useEffect(() => {
+    async function initializeLibraries() {
+      try {
+        // Initialize FFmpeg
+        const ffmpeg = new FFmpeg();
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.9/dist/esm';
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+        setFFmpegInstance(ffmpeg);
+
+        // Initialize ImageMagick
+        await initializeImageMagick(
+          new URL('https://unpkg.com/@imagemagick/magick-wasm@0.0.32/dist/magick.wasm')
+        );
+
+        setInitializingLibs(false);
+      } catch (error) {
+        console.error('Failed to initialize libraries:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to initialize conversion libraries. Please refresh the page.',
+          color: 'red',
+          autoClose: false,
+        });
+      }
+    }
+
+    initializeLibraries();
+  }, []);
 
   const isValidMediaType = (type: string) => {
     return type.startsWith('audio/') || type.startsWith('video/') || type.startsWith('image/');
@@ -179,8 +217,22 @@ export default function App() {
     }
   };
 
+  const handleCancel = () => {
+    cancelConversion();
+    notifications.show({
+      title: 'Cancelled',
+      message: 'Conversion cancelled. Please wait for cleanup to complete...',
+      color: 'yellow',
+    });
+  };
+
   return (
     <MantineProvider theme={theme} defaultColorScheme="light">
+      <LoadingOverlay
+        visible={initializingLibs}
+        transitionProps={{ duration: 100 }}
+        overlayProps={{ radius: "sm", blur: 2 }}
+      />
       <Notifications />
       <Container size="sm" py="xl">
         <Stack>
@@ -229,16 +281,28 @@ export default function App() {
                     data={getAvailableFormats()}
                     value={targetFormat}
                     onChange={setTargetFormat}
+                    disabled={initializingLibs || converting}
                   />
                   {progress > 0 && <Progress value={progress} animated />}
-                  <Button
-                    onClick={handleConvert}
-                    loading={converting}
-                    disabled={!targetFormat}
-                    fullWidth
-                  >
-                    Convert
-                  </Button>
+                  <Group gap="xs">
+                    <Button
+                      onClick={handleConvert}
+                      loading={converting}
+                      disabled={!targetFormat || initializingLibs}
+                      style={{ flex: 1 }}
+                    >
+                      {initializingLibs ? 'Initializing...' : 'Convert'}
+                    </Button>
+                    {converting && (
+                      <Button
+                        onClick={handleCancel}
+                        color="red"
+                        style={{ width: 100 }}
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </Group>
                 </>
               )}
             </Stack>
