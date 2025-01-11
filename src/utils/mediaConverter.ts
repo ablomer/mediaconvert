@@ -66,11 +66,12 @@ export async function convertMedia(
     const isImageToImage = !isInputVideo && !isInputAudio && !isTargetVideo && !isTargetAudio;
 
     // If it's a simple static image → static image, use ImageMagick (faster & lighter).
-    if (isImageToImage && !file.type.includes('webp')) {
+    // For WebP to PNG specifically, or any other static image conversion, use ImageMagick
+    if (isImageToImage && (!file.type.includes('webp') || targetFormat.toLowerCase() === 'png')) {
       return await convertWithImageMagick(file, targetFormat, onProgress, onLog);
     }
 
-    // Otherwise, use FFmpeg for everything else (video, audio, or animated WebP).
+    // Otherwise, use FFmpeg for everything else (video, audio, or animated WebP to video).
     return await convertWithFFmpeg(
       file,
       targetFormat,

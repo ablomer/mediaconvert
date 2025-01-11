@@ -30,7 +30,7 @@ const theme = createTheme({
 });
 
 const videoFormats = ['mp4', 'webm', 'mov', 'mkv', 'avi', 'flv'];
-const imageFormats = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'];
+const imageFormats = ['jpg', 'png', 'webp', 'gif', 'bmp', 'tiff'];
 const audioFormats = ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'];
 
 export default function App() {
