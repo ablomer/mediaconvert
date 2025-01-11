@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { Notifications, notifications } from '@mantine/notifications';
 import { Dropzone } from '@mantine/dropzone';
-import { IconUpload, IconPhoto, IconVideo, IconMusic } from '@tabler/icons-react';
+import { IconUpload, IconPhoto, IconVideo, IconMusic, IconBrandGithub } from '@tabler/icons-react';
 import { convertMedia, setFFmpegInstance, cancelConversion } from './utils/mediaConverter';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
@@ -271,7 +271,20 @@ export default function App() {
       <Notifications />
       <Container size="sm" py="xl">
         <Stack>
-          <Title ta="center">Media Converter</Title>
+          <Group justify="space-between" align="baseline">
+            <Title order={1} style={{ lineHeight: 1 }}>Media Converter</Title>
+            <Button
+              component="a"
+              href="https://github.com/ablomer/mediaconvert"
+              target="_blank"
+              variant="subtle"
+              size="xs"
+              leftSection={<IconBrandGithub size={16} />}
+              style={{ height: 24 }}
+            >
+              View on GitHub
+            </Button>
+          </Group>
           <Paper p="xl" radius="md" withBorder>
             <Stack>
               <Dropzone
