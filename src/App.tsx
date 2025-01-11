@@ -213,7 +213,7 @@ export default function App() {
                       Drag, paste, or click to select media files
                     </Text>
                     <Text size="sm" c="dimmed" inline mt={7}>
-                      You can also paste a URL to a media file
+                      Supports images, videos, and audio files
                     </Text>
                   </div>
                 </Group>
@@ -225,6 +225,7 @@ export default function App() {
                   <Select
                     label="Convert to"
                     placeholder="Select target format"
+                    allowDeselect={false}
                     data={getAvailableFormats()}
                     value={targetFormat}
                     onChange={setTargetFormat}
