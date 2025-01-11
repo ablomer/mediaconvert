@@ -1,6 +1,6 @@
 // Import the functions you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, logEvent } from "firebase/analytics";
 
 // Configuration
 const firebaseConfig = {
@@ -16,5 +16,20 @@ const firebaseConfig = {
 // Initialize
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+
+// Analytics helper functions
+export const logAppOpen = () => {
+  logEvent(analytics, 'page_view');
+};
+
+export const logConversionEvent = (eventName: string, params: {
+  from_format: string;
+  to_format: string;
+  file_size?: number;
+  error_message?: string;
+  duration_ms?: number;
+}) => {
+  logEvent(analytics, eventName, params);
+};
 
 export { app, analytics }; 

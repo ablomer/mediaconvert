@@ -20,6 +20,7 @@ import { convertMedia, setFFmpegInstance, cancelConversion } from './utils/media
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
 import { initializeImageMagick } from '@imagemagick/magick-wasm';
+import { logConversionEvent, logAppOpen } from './config/firebase';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/dropzone/styles.css';
@@ -40,6 +41,11 @@ export default function App() {
   const [converting, setConverting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [initializingLibs, setInitializingLibs] = useState(true);
+
+  // Track app opens
+  useEffect(() => {
+    logAppOpen();
+  }, []);
 
   // Pre-initialize FFmpeg and ImageMagick
   useEffect(() => {
@@ -180,10 +186,19 @@ export default function App() {
     
     setConverting(true);
     setProgress(0);
+    const startTime = Date.now();
 
     try {
       console.log(`Starting conversion of ${file.name} to ${targetFormat}`);
       const blob = await convertMedia(file, targetFormat, setProgress, handleLog);
+
+      // Log successful conversion
+      logConversionEvent('media_conversion_complete', {
+        from_format: file.name.split('.').pop()?.toLowerCase() || 'unknown',
+        to_format: targetFormat,
+        file_size: file.size,
+        duration_ms: Date.now() - startTime
+      });
 
       // Create and trigger download of converted file
       const fileName = file.name.split('.')[0] + '.' + targetFormat;
@@ -203,6 +218,16 @@ export default function App() {
       });
     } catch (error) {
       console.error('Conversion failed:', error);
+      
+      // Log conversion error
+      logConversionEvent('media_conversion_error', {
+        from_format: file.name.split('.').pop()?.toLowerCase() || 'unknown',
+        to_format: targetFormat,
+        file_size: file.size,
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+        duration_ms: Date.now() - startTime
+      });
+
       notifications.show({
         title: 'Error',
         message: error instanceof Error 
@@ -219,6 +244,16 @@ export default function App() {
 
   const handleCancel = () => {
     cancelConversion();
+    
+    // Log cancellation
+    if (file && targetFormat) {
+      logConversionEvent('media_conversion_cancelled', {
+        from_format: file.name.split('.').pop()?.toLowerCase() || 'unknown',
+        to_format: targetFormat,
+        file_size: file.size
+      });
+    }
+
     notifications.show({
       title: 'Cancelled',
       message: 'Conversion cancelled. Please wait for cleanup to complete...',
