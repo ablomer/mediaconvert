@@ -273,7 +273,17 @@ export default function App() {
 
               {file && (
                 <>
-                  <Text>Selected file: {file.name}</Text>
+                  <Stack gap="xs">
+                    <Text fw={500} size="sm">Selected file</Text>
+                    <Paper withBorder p="xs" bg="var(--mantine-color-gray-0)">
+                      <Group>
+                        {file.type.startsWith('image/') && <IconPhoto size={20} />}
+                        {file.type.startsWith('video/') && <IconVideo size={20} />}
+                        {file.type.startsWith('audio/') && <IconMusic size={20} />}
+                        <Text fz="sm" style={{ wordBreak: 'break-all' }}>{file.name}</Text>
+                      </Group>
+                    </Paper>
+                  </Stack>
                   <Select
                     label="Convert to"
                     placeholder="Select target format"
