@@ -121,8 +121,28 @@ async function convertWithImageMagick(
 
         onProgress(50); // halfway: reading complete
 
-        // Convert to the specified format
-        const format = MagickFormat[targetFormat.toUpperCase() as keyof typeof MagickFormat];
+        // Map common format names to MagickFormat enum values
+        const formatMap: Record<string, keyof typeof MagickFormat> = {
+          'png': 'Png',
+          'jpg': 'Jpg',
+          'jpeg': 'Jpg',
+          'webp': 'WebP',
+          'gif': 'Gif',
+          'bmp': 'Bmp',
+          'tiff': 'Tiff'
+        };
+
+        const formatKey = formatMap[targetFormat.toLowerCase()];
+        if (!formatKey) {
+          reject(new Error(`Unsupported target format: ${targetFormat}`));
+          return;
+        }
+
+        const format = MagickFormat[formatKey];
+        onLog(`Converting to format: ${formatKey}`);
+        
+        // Set the format and convert
+        image.format = format;
         image.write(format, (data: Uint8Array) => {
           if (isCancelled) {
             reject(new Error('Conversion cancelled'));

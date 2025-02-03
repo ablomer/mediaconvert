@@ -365,6 +365,7 @@ export default function App() {
               )}
             </Stack>
           </Paper>
+          <Text c="dimmed" size="xs" ta="center" ff="monospace" fw={500}>0.9.1 beta</Text>
         </Stack>
       </Container>
     </MantineProvider>
