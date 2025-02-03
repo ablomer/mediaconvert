@@ -189,6 +189,15 @@ export default function App() {
     const startTime = Date.now();
 
     try {
+      // Initialize a new FFmpeg instance for this conversion
+      const newFfmpeg = new FFmpeg();
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.9/dist/esm';
+      await newFfmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
+      setFFmpegInstance(newFfmpeg);
+
       console.log(`Starting conversion of ${file.name} to ${targetFormat}`);
       const blob = await convertMedia(file, targetFormat, setProgress, handleLog);
 
@@ -234,7 +243,7 @@ export default function App() {
           ? `Conversion failed: ${error.message}`
           : 'Failed to convert file. Check console for details.',
         color: 'red',
-        autoClose: false,
+        autoClose: 5000,
       });
     } finally {
       setConverting(false);
@@ -242,23 +251,24 @@ export default function App() {
     }
   };
 
-  const handleCancel = () => {
-    cancelConversion();
-    
-    // Log cancellation
-    if (file && targetFormat) {
-      logConversionEvent('media_conversion_cancelled', {
-        from_format: file.name.split('.').pop()?.toLowerCase() || 'unknown',
-        to_format: targetFormat,
-        file_size: file.size
-      });
+  const handleCancel = async () => {
+    try {
+      await cancelConversion();
+      
+      // Log cancellation
+      if (file && targetFormat) {
+        logConversionEvent('media_conversion_cancelled', {
+          from_format: file.name.split('.').pop()?.toLowerCase() || 'unknown',
+          to_format: targetFormat,
+          file_size: file.size
+        });
+      }
+    } catch (error) {
+      console.error('Error during cancellation:', error);
+    } finally {
+      setConverting(false);
+      setProgress(0);
     }
-
-    notifications.show({
-      title: 'Cancelled',
-      message: 'Conversion cancelled. Please wait for cleanup to complete...',
-      color: 'yellow',
-    });
   };
 
   return (
@@ -365,7 +375,7 @@ export default function App() {
               )}
             </Stack>
           </Paper>
-          <Text c="dimmed" size="xs" ta="center" ff="monospace" fw={500}>0.9.1 beta</Text>
+          <Text c="dimmed" size="xs" ta="center" ff="monospace" fw={500}>0.9.2 beta</Text>
         </Stack>
       </Container>
     </MantineProvider>

@@ -25,10 +25,19 @@ export function setFFmpegInstance(instance: FFmpeg) {
 let isCancelled = false;
 
 /**
- * Cancel the current conversion process
+ * Cancel the current conversion process by terminating FFmpeg instance
  */
-export function cancelConversion() {
+export async function cancelConversion() {
   isCancelled = true;
+  if (ffmpeg) {
+    // Terminate the current FFmpeg instance
+    try {
+      await ffmpeg.terminate();
+    } catch (error) {
+      console.error('Error terminating FFmpeg:', error);
+    }
+    ffmpeg = null;
+  }
 }
 
 /**
@@ -463,10 +472,16 @@ async function convertWithFFmpeg(
 
       // Step 7) Run FFmpeg
       onLog('Running FFmpeg with args: ' + ffmpegArgs.join(' '));
-      await ffmpeg.exec(ffmpegArgs);
+      try {
+        await ffmpeg.exec(ffmpegArgs);
+      } catch (error) {
+        if (isCancelled) {
+          throw new Error('Conversion cancelled');
+        }
+        throw error;
+      }
 
       if (isCancelled) {
-        await cleanupTempFiles(ffmpeg, [ffmpegInputName, outputName], onLog);
         throw new Error('Conversion cancelled');
       }
 
